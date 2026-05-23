@@ -1,0 +1,116 @@
+name: Bootstrap GitOps On Minikube
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: bootstrap, destroy, or stop
+        required: true
+        type: choice
+        options:
+          - bootstrap
+          - destroy
+          - stop
+
+permissions:
+  contents: read
+
+jobs:
+  gitops:
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /home/devops/.kube/config
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Tooling
+        run: |
+          docker --version
+          minikube version
+          kubectl version --client
+
+      - name: Ensure Minikube Running
+        if: github.event.inputs.action != 'stop'
+        run: |
+          minikube start --driver=docker --cpus=6 --memory=8192
+          minikube update-context
+          kubectl config current-context
+          kubectl get nodes -o wide
+          minikube status
+
+      - name: Enable Required Addons
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          minikube addons enable ingress
+          minikube addons enable metrics-server
+
+      - name: Wait For Ingress Controller
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl wait \
+            --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+
+      - name: Ensure Argo CD Namespace
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Argo CD If Missing
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          if ! kubectl get crd applications.argoproj.io >/dev/null 2>&1; then
+            kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          fi
+
+      - name: Wait For Argo CD
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl rollout status deployment/argocd-server -n argocd --timeout=300s || \
+          kubectl rollout status deployment/my-argo-cd-argocd-server -n argocd --timeout=300s
+
+          kubectl rollout status deployment/argocd-repo-server -n argocd --timeout=300s || \
+          kubectl rollout status deployment/my-argo-cd-argocd-repo-server -n argocd --timeout=300s
+
+          kubectl get pods -n argocd
+
+      - name: Validate Platform Manifests
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl kustomize argocd
+          kubectl apply --dry-run=server -k argocd
+          kubectl apply --dry-run=server -f bootstrap/root-app.yaml
+
+      - name: Bootstrap Root Application
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl apply -f bootstrap/root-app.yaml
+
+      - name: Verify GitOps Applications
+        if: github.event.inputs.action == 'bootstrap'
+        run: |
+          kubectl get applications -n argocd
+          kubectl get appprojects -n argocd
+
+      - name: Destroy GitOps Applications
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          kubectl delete -f bootstrap/root-app.yaml --ignore-not-found=true
+          kubectl delete application microservices-deployment monitoring-application -n argocd --ignore-not-found=true
+          kubectl delete appproject minikube-workloads -n argocd --ignore-not-found=true
+
+      - name: Stop Minikube
+        if: github.event.inputs.action == 'stop'
+        run: |
+          minikube stop
+
+      - name: Show Cluster Performance
+        if: always() && github.event.inputs.action != 'stop'
+        run: |
+          kubectl top nodes || true
+          kubectl top pods -A || true
