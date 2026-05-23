@@ -35,7 +35,14 @@ jobs:
       - name: Ensure Minikube Running
         if: github.event.inputs.action != 'stop'
         run: |
-          minikube start --driver=docker --cpus=6 --memory=8192
+          if minikube status | grep -q "host: Running" && \
+             minikube status | grep -q "kubelet: Running" && \
+             minikube status | grep -q "apiserver: Running"; then
+            echo "Minikube is already running"
+          else
+            minikube start --driver=docker --cpus=6 --memory=8192
+          fi
+
           minikube update-context -p minikube
           kubectl config use-context minikube
           kubectl config current-context
@@ -72,11 +79,21 @@ jobs:
       - name: Wait For Argo CD
         if: github.event.inputs.action == 'bootstrap'
         run: |
-          kubectl rollout status deployment/argocd-server -n argocd --timeout=300s || \
-          kubectl rollout status deployment/my-argo-cd-argocd-server -n argocd --timeout=300s
+          ARGOCD_SERVER_DEPLOYMENT="$(kubectl get deployment -n argocd \
+            -l app.kubernetes.io/name=argocd-server \
+            -o jsonpath='{.items[0].metadata.name}')"
 
-          kubectl rollout status deployment/argocd-repo-server -n argocd --timeout=300s || \
-          kubectl rollout status deployment/my-argo-cd-argocd-repo-server -n argocd --timeout=300s
+          ARGOCD_REPO_SERVER_DEPLOYMENT="$(kubectl get deployment -n argocd \
+            -l app.kubernetes.io/name=argocd-repo-server \
+            -o jsonpath='{.items[0].metadata.name}')"
+
+          kubectl delete pod -n argocd \
+            -l app.kubernetes.io/name=argocd-repo-server \
+            --field-selector=status.phase!=Running \
+            --ignore-not-found=true
+
+          kubectl rollout status "deployment/${ARGOCD_SERVER_DEPLOYMENT}" -n argocd --timeout=300s
+          kubectl rollout status "deployment/${ARGOCD_REPO_SERVER_DEPLOYMENT}" -n argocd --timeout=300s
 
           kubectl get pods -n argocd
 
