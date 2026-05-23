@@ -36,7 +36,8 @@ jobs:
         if: github.event.inputs.action != 'stop'
         run: |
           minikube start --driver=docker --cpus=6 --memory=8192
-          minikube update-context
+          minikube update-context -p minikube
+          kubectl config use-context minikube
           kubectl config current-context
           kubectl get nodes -o wide
           minikube status
@@ -107,6 +108,7 @@ jobs:
       - name: Stop Minikube
         if: github.event.inputs.action == 'stop'
         run: |
+          minikube update-context -p minikube || true
           minikube stop
 
       - name: Show Cluster Performance
