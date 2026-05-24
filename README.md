@@ -145,12 +145,7 @@ http://localhost:4466
 For a local Minikube admin login token:
 
 ```bash
-kubectl create serviceaccount headlamp-admin -n headlamp --dry-run=client -o yaml | kubectl apply -f -
-kubectl create clusterrolebinding headlamp-admin \
-  --clusterrole=cluster-admin \
-  --serviceaccount=headlamp:headlamp-admin \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n headlamp create token headlamp-admin
+kubectl -n headlamp create token headlamp
 ```
 
 Microservices ingress:
