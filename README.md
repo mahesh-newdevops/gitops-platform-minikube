@@ -6,6 +6,7 @@ This platform repo manages these workload repositories:
 
 - `microservices-deployment`: deploys the demo application from `k8s/` into the `microservices` namespace.
 - `monitoring-application`: deploys Prometheus, Loki, Grafana, and Alloy from `k8s/` into the `monitoring` namespace.
+- `headlamp`: deploys the Headlamp Kubernetes UI Helm chart into the `headlamp` namespace.
 
 ## Repository Layout
 
@@ -84,6 +85,7 @@ Argo CD will then reconcile:
 - `argocd/projects/minikube-workloads-project.yaml`
 - `argocd/apps/microservices-deployment.yaml`
 - `argocd/apps/monitoring-application.yaml`
+- `argocd/apps/headlamp.yaml`
 
 ## Check Sync Status
 
@@ -91,6 +93,7 @@ Argo CD will then reconcile:
 kubectl get applications -n argocd
 kubectl get pods -n microservices
 kubectl get pods -n monitoring
+kubectl get pods -n headlamp
 ```
 
 ## Access Argo CD
@@ -125,6 +128,31 @@ Then open:
 http://localhost:3000
 ```
 
+Headlamp:
+
+Headlamp is the recommended Kubernetes UI replacement for the archived Kubernetes Dashboard.
+
+```bash
+kubectl -n headlamp port-forward svc/headlamp 4466:80
+```
+
+Then open:
+
+```text
+http://localhost:4466
+```
+
+For a local Minikube admin login token:
+
+```bash
+kubectl create serviceaccount headlamp-admin -n headlamp --dry-run=client -o yaml | kubectl apply -f -
+kubectl create clusterrolebinding headlamp-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=headlamp:headlamp-admin \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n headlamp create token headlamp-admin
+```
+
 Microservices ingress:
 
 ```bash
@@ -141,7 +169,7 @@ http://microservices.local
 
 ```bash
 kubectl delete -f bootstrap/root-app.yaml --ignore-not-found
-kubectl delete application microservices-deployment monitoring-application -n argocd --ignore-not-found
+kubectl delete application microservices-deployment monitoring-application headlamp -n argocd --ignore-not-found
 kubectl delete appproject minikube-workloads -n argocd --ignore-not-found
-kubectl delete namespace microservices monitoring --ignore-not-found
+kubectl delete namespace microservices monitoring headlamp --ignore-not-found
 ```

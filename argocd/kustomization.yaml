@@ -4,3 +4,4 @@ resources:
   - projects/minikube-workloads-project.yaml
   - apps/microservices-deployment.yaml
   - apps/monitoring-application.yaml
+  - apps/headlamp.yaml

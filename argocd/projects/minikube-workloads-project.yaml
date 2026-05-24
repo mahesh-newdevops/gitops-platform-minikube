@@ -11,6 +11,7 @@ spec:
     - https://github.com/mahesh-newdevops/gitops-platform-minikube.git
     - https://github.com/mahesh-newdevops/microservices-deployment.git
     - https://github.com/mahesh-newdevops/monitoring-application.git
+    - https://kubernetes-sigs.github.io/headlamp/
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
@@ -18,6 +19,8 @@ spec:
       namespace: microservices
     - server: https://kubernetes.default.svc
       namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: headlamp
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
