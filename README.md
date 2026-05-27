@@ -4,6 +4,8 @@ Argo CD app-of-apps bootstrap repository for Minikube.
 
 This platform repo manages these workload repositories:
 
+- `cert-manager`: installs cert-manager and a local self-signed `ClusterIssuer`.
+- `istio`: installs Istio base CRDs, `istiod`, and a NodePort ingress gateway from the official Istio Helm charts.
 - `microservices-deployment`: deploys the demo application from `k8s/` into the `microservices` namespace.
 - `monitoring-application`: deploys Prometheus, Loki, Grafana, and Alloy from `k8s/` into the `monitoring` namespace.
 - `headlamp`: deploys the Headlamp Kubernetes UI Helm chart into the `headlamp` namespace.
@@ -82,7 +84,13 @@ kubectl apply -f bootstrap/root-app.yaml
 
 Argo CD will then reconcile:
 
+- `argocd/projects/minikube-platform-project.yaml`
 - `argocd/projects/minikube-workloads-project.yaml`
+- `argocd/apps/cert-manager.yaml`
+- `argocd/apps/cert-manager-issuers.yaml`
+- `argocd/apps/istio-base.yaml`
+- `argocd/apps/istiod.yaml`
+- `argocd/apps/istio-ingressgateway.yaml`
 - `argocd/apps/microservices-deployment.yaml`
 - `argocd/apps/monitoring-application.yaml`
 - `argocd/apps/headlamp.yaml`
@@ -91,6 +99,10 @@ Argo CD will then reconcile:
 
 ```bash
 kubectl get applications -n argocd
+kubectl get pods -n cert-manager
+kubectl get clusterissuer
+kubectl get pods -n istio-system
+kubectl get pods -n istio-ingress
 kubectl get pods -n microservices
 kubectl get pods -n monitoring
 kubectl get pods -n headlamp
@@ -160,11 +172,17 @@ Then open:
 http://microservices.local
 ```
 
+Istio ingress gateway:
+
+```bash
+minikube service istio-ingressgateway -n istio-ingress
+```
+
 ## Cleanup
 
 ```bash
 kubectl delete -f bootstrap/root-app.yaml --ignore-not-found
-kubectl delete application microservices-deployment monitoring-application headlamp -n argocd --ignore-not-found
-kubectl delete appproject minikube-workloads -n argocd --ignore-not-found
-kubectl delete namespace microservices monitoring headlamp --ignore-not-found
+kubectl delete application cert-manager cert-manager-issuers istio-base istiod istio-ingressgateway microservices-deployment monitoring-application headlamp -n argocd --ignore-not-found
+kubectl delete appproject minikube-platform minikube-workloads -n argocd --ignore-not-found
+kubectl delete namespace cert-manager istio-system istio-ingress microservices monitoring headlamp --ignore-not-found
 ```
