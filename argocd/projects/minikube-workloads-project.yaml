@@ -10,8 +10,9 @@ spec:
   sourceRepos:
     - https://github.com/mahesh-newdevops/gitops-platform-minikube.git
     - https://github.com/mahesh-newdevops/microservices-deployment.git
-    - https://github.com/mahesh-newdevops/monitoring-application.git
     - https://kubernetes-sigs.github.io/headlamp/
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
@@ -24,6 +25,12 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
     - group: rbac.authorization.k8s.io
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
